@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>새벽결 블렌드</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans+KR:wght@500;600;700&display=swap">
+<style>
+/* 레이아웃: 한 화면 게임 메뉴 — 브랜드, 탭, 타일 격자, 키 안내 */
+:root{
+  --bg:#0a0a0a; --ink:#101820; --paper:#f4f5f6; --navy:#0c1626; --tile:#1a2230;
+  --yellow:#f6ff2a; --orange:#ff4a1c; --red:#e4002b; --white:#fff; --dim:rgba(255,255,255,.62);
+  --font:"Barlow Condensed","IBM Plex Sans KR","Malgun Gothic",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--white);font-family:var(--font);font-weight:600;word-break:keep-all}
+button{font:inherit;color:inherit;border:0;border-radius:0;background:none;padding:0;cursor:pointer}
+:focus-visible{outline:3px solid var(--orange);outline-offset:-3px}
+.app{position:relative;isolation:isolate;display:flex;flex-direction:column;min-height:100vh;padding-block:24px 16px;
+  padding-left:max(16px,6vw,env(safe-area-inset-left,0px));padding-right:max(16px,6vw,env(safe-area-inset-right,0px));
+  animation:iris 1.5s cubic-bezier(.6,0,.2,1) backwards}
+@keyframes iris{from{clip-path:circle(9% at 50% 50%)}to{clip-path:circle(120% at 50% 50%)}}
+#backdrop{position:absolute;inset:0;width:100%;height:100%;z-index:-2}
+.app::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(rgba(4,8,14,.5),rgba(4,8,14,.12) 30%,rgba(4,8,14,.2) 70%,rgba(4,8,14,.65))}
+
+header{display:flex;align-items:center;gap:12px;font-size:1.05rem;font-weight:700;letter-spacing:.05em}
+header b{background:var(--white);color:var(--ink);border-left:7px solid var(--red);padding:0 9px;font-weight:800}
+.tabs{display:flex;gap:2px;margin-block:48px 5px;overflow-x:auto}
+.tabs button{flex:none;background:var(--navy);color:rgba(255,255,255,.88);padding:6px 23px;font-size:1.1rem;letter-spacing:.02em}
+.tabs button:hover{color:var(--yellow)}
+.tabs button[aria-selected="true"]{background:var(--yellow);color:var(--ink)}
+
+main{flex:1;display:flex;flex-direction:column}
+.view{flex:1;display:grid;gap:5px;min-height:480px}
+.tile{position:relative;isolation:isolate;display:flex;flex-direction:column;align-items:flex-start;text-align:left;min-width:0;min-height:0;overflow:hidden;padding:16px 17px 18px;background:var(--tile);color:var(--white)}
+.tile canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-2;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+.tile.img::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(rgba(4,8,14,.62),rgba(4,8,14,.1) 52%,rgba(4,8,14,.35))}
+button.tile.sel::after{content:"";position:absolute;left:0;right:0;bottom:0;height:6px;background:var(--orange)}
+button.tile.sel canvas{transform:scale(1.05)}
+.t{display:block;font-size:clamp(1.7rem,2.9vw,2.5rem);font-weight:700;line-height:1.02;text-transform:uppercase}
+.s{display:block;margin-top:7px;max-width:24em;font-size:.95rem;line-height:1.3;letter-spacing:.03em;color:rgba(255,255,255,.88)}
+.go{margin-top:auto;background:var(--yellow);color:var(--ink);padding:1px 8px 1px 9px;font-size:.9rem;font-weight:700;letter-spacing:.12em}
+.light{background:var(--paper);color:var(--ink)}
+.light .s{color:rgba(16,24,32,.62)}
+.navy{background:var(--navy)}
+.hot{background:var(--orange)}
+.icon{position:absolute;right:-6px;bottom:4px;width:min(58%,150px);height:55%;z-index:-1;fill:none;stroke:currentColor;stroke-width:7;stroke-linecap:round;stroke-linejoin:round;opacity:.11}
+.tag{position:absolute;top:10px;right:10px;background:var(--yellow);color:var(--ink);padding:0 7px;font-size:.78rem;font-weight:700;letter-spacing:.12em}
+
+#home{grid-template-columns:1.3fr 1fr 1fr 1fr;grid-template-rows:233fr 202fr minmax(60px,auto)}
+#home .wide{grid-column:span 2}
+#home .strip{grid-column:1/-1;flex-direction:row;align-items:center;gap:22px;padding-block:10px}
+.strip .t{font-size:1.35rem}.strip .s{margin:0}.strip .go{margin:0 0 0 auto}
+.strip .icon{right:90px;bottom:-14px;height:130%;width:80px}
+
+#tasting{grid-template-columns:repeat(3,1fr);grid-template-rows:1fr 1fr}
+.ghost{background:transparent}
+.ghost .icon{opacity:.2}
+.ghost .t,.ghost .s{text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.bars{position:absolute;right:18px;bottom:18px;display:flex;align-items:flex-end;gap:7px;height:44%}
+.bars i{width:7px;border-radius:4px;background:rgba(16,24,32,.12)}
+.bars i.on{background:var(--ink)}
+.bars i:nth-child(1){height:20%}.bars i:nth-child(2){height:40%}.bars i:nth-child(3){height:60%}.bars i:nth-child(4){height:80%}.bars i:nth-child(5){height:100%}
+
+#beans{grid-template-columns:2fr 1fr 1fr;grid-template-rows:repeat(3,1fr)}
+#beans .hero-tile{grid-row:1/-1}
+#beans .span2{grid-column:span 2}
+.hero-tile .t{font-size:clamp(2.2rem,4vw,3.4rem)}
+.value{margin-top:auto;font-size:clamp(1.15rem,1.8vw,1.55rem);font-weight:700;line-height:1.25}
+.roast{width:100%;height:10px;margin-top:10px;background:linear-gradient(90deg,#c9a06a,#96602f,#5e351b,#2a160c);position:relative}
+.roast::after{content:"";position:absolute;left:48%;top:-5px;width:8px;height:20px;background:var(--orange)}
+
+#brew{grid-template-columns:repeat(6,1fr);grid-template-rows:233fr 202fr}
+#brew .method{grid-column:span 2;border:3px solid transparent}
+#brew .method[aria-pressed="true"]{border-color:var(--ink)}
+#brew .method .tag{visibility:hidden}
+#brew .method[aria-pressed="true"] .tag{visibility:visible}
+#brew .recipe{grid-column:span 4}
+#brew .cups{grid-column:span 2}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 14px;width:100%;margin-block:auto 0}
+.nums small{display:block;color:var(--dim);font-size:.9rem}
+.nums strong{display:block;font-size:clamp(1.6rem,3.4vw,2.8rem);line-height:1.15;font-variant-numeric:tabular-nums}
+.tip{margin:12px 0 0;font:500 .9rem/1.5 "IBM Plex Sans KR","Malgun Gothic",sans-serif;color:rgba(255,255,255,.8)}
+.step{display:flex;align-items:center;gap:6px;margin-top:auto}
+.step button{background:var(--yellow);color:var(--ink);width:46px;height:38px;font-size:1.5rem;font-weight:800;line-height:1}
+.step button:focus-visible{outline-color:var(--ink)}
+.step button:disabled{opacity:.45;cursor:default}
+.step output{min-width:3.4em;text-align:center;font-size:2.2rem;font-weight:800}
+
+footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 16px;margin-top:14px;font-size:.95rem;letter-spacing:.04em}
+kbd{font:700 .9rem var(--font);background:var(--yellow);color:var(--ink);padding:0 6px;margin-inline:2px 6px}
+.credit{font-size:.82rem;letter-spacing:.14em;color:var(--dim)}
+.help{align-self:center;display:flex;align-items:center;margin-top:20px;padding:6px 12px;background:rgba(12,22,38,.85);border-left:3px solid rgba(255,255,255,.5);font-size:.9rem;font-weight:700;letter-spacing:.04em}
+.panel{position:absolute;z-index:2;left:50%;bottom:70px;transform:translateX(-50%);width:min(340px,calc(100% - 32px));background:var(--navy);border-top:4px solid var(--yellow);padding:16px 20px}
+.panel h2{margin:0 0 10px;font-size:1.8rem;text-transform:uppercase}
+.panel p{margin:6px 0;font-size:1rem}
+
+@media (max-width:760px){
+  .tabs{margin-top:22px}
+  .tabs button{padding-inline:14px}
+  .view{min-height:0}
+  #home,#tasting,#beans,#brew{grid-template-columns:1fr 1fr;grid-template-rows:none;grid-auto-rows:minmax(180px,auto)}
+  #home .wide,#home .tile:first-child{grid-column:1/-1;min-height:230px}
+  #home .strip{grid-column:1/-1;min-height:60px;flex-wrap:wrap;gap:6px 14px}
+  #home{grid-auto-rows:auto}
+  #home .tile:not(.strip){min-height:180px}
+  #home .tile.light:not(.strip){grid-column:1/-1}
+  #beans .hero-tile{grid-row:auto;grid-column:1/-1;min-height:280px}
+  #beans .tile{min-height:140px}
+  #brew .method,#brew .recipe,#brew .cups{grid-column:1/-1}
+  .nums{grid-template-columns:1fr 1fr;margin-top:20px}
+  .keys{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <canvas id="backdrop" data-scene="window" aria-hidden="true"></canvas>
+  <header><b>C</b><span>회사명 커피 · PROJECT DAWN</span></header>
+
+  <nav class="tabs" role="tablist" aria-label="주요 메뉴">
+    <button type="button" role="tab" data-tab="home" aria-selected="true">HOME</button>
+    <button type="button" role="tab" data-tab="tasting" aria-selected="false">TASTING</button>
+    <button type="button" role="tab" data-tab="beans" aria-selected="false">BEANS</button>
+    <button type="button" role="tab" data-tab="brew" aria-selected="false">BREW GUIDE</button>
+  </nav>
+
+  <main>
+    <div class="view" id="home" role="tabpanel">
+      <button type="button" class="tile img sel" data-open="tasting"><canvas data-scene="dawn" aria-hidden="true"></canvas><span class="t">Dawn Blend</span><span class="s">새벽결 · 천천히 번지는 단맛</span><span class="go">VIEW</span></button>
+      <button type="button" class="tile img wide" data-open="beans"><canvas data-scene="bag" aria-hidden="true"></canvas><span class="t">The Bag</span><span class="s">새 하우스 블렌드 · 홀빈 200 g</span><span class="go">VIEW</span></button>
+      <button type="button" class="tile img" data-open="tasting"><canvas data-scene="orange" aria-hidden="true"></canvas><span class="t">First<br>Sip</span><span class="s">오렌지 향이<br>먼저 옵니다</span><span class="go">VIEW</span></button>
+      <button type="button" class="tile img" data-open="brew" data-method="drip"><canvas data-scene="drip" aria-hidden="true"></canvas><span class="t">Hand Drip</span><span class="s">원두 15 g · 물 240 g</span><span class="go">BREW</span></button>
+      <button type="button" class="tile img" data-open="brew" data-method="espresso"><canvas data-scene="espresso" aria-hidden="true"></canvas><span class="t">Espresso</span><span class="s">28초에 담는 진한 단맛</span><span class="go">BREW</span></button>
+      <button type="button" class="tile img" data-open="brew" data-method="cold"><canvas data-scene="cold" aria-hidden="true"></canvas><span class="t">Cold Brew</span><span class="s">12시간 천천히</span><span class="go">BREW</span></button>
+      <button type="button" class="tile light" data-open="beans"><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40"/><path d="M10 50H90M50 10C24 34 24 66 50 90M50 10C76 34 76 66 50 90"/></svg><span class="t">Origin</span><span class="s">에티오피아 · 콜롬비아</span><span class="go">OPEN</span></button>
+      <button type="button" class="tile light strip" data-open="beans"><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="50" rx="30" ry="42" transform="rotate(35 50 50)"/><path d="M74 16C46 34 62 60 26 84"/></svg><span class="t">Roast</span><span class="s">미디엄 로스트 · 아라비카 100%</span><span class="go">OPEN</span></button>
+    </div>
+
+    <div class="view" id="tasting" role="tabpanel" hidden>
+      <div class="tile ghost"><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="30"/><path d="M50 20V80M20 50H80M29 29L71 71M71 29L29 71"/></svg><span class="t">Orange</span><span class="s">첫 모금에 퍼지는 밝고 상큼한 산미</span></div>
+      <div class="tile ghost"><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="58" r="32"/><path d="M50 26C50 16 56 10 66 8M50 28C40 44 42 70 52 88"/></svg><span class="t">Plum</span><span class="s">한 김 식으면 올라오는 과즙 같은 단맛</span></div>
+      <div class="tile ghost"><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><rect x="18" y="14" width="64" height="72" rx="6"/><path d="M50 14V86M18 38H82M18 62H82"/></svg><span class="t">Dark Chocolate</span><span class="s">입안에 오래 남는 쌉싸름하고 부드러운 여운</span></div>
+      <div class="tile light"><span class="t">Acidity</span><span class="s">산미 3 / 5</span><span class="bars" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+      <div class="tile light"><span class="t">Sweetness</span><span class="s">단맛 4 / 5</span><span class="bars" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+      <div class="tile light"><span class="t">Body</span><span class="s">바디 4 / 5</span><span class="bars" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+    </div>
+
+    <div class="view" id="beans" role="tabpanel" hidden>
+      <div class="tile img hero-tile"><canvas data-scene="beans" aria-hidden="true"></canvas><span class="t">Meet the Beans</span><span class="s">화사한 원두와 묵직한 원두를 섞어 균형을 맞췄습니다</span></div>
+      <div class="tile light span2"><span class="t">Origin</span><span class="s">원산지</span><span class="value">에티오피아 40% · 콜롬비아 60%</span></div>
+      <div class="tile light"><span class="t">Variety</span><span class="s">품종</span><span class="value">아라비카 100%</span></div>
+      <div class="tile light"><span class="t">Process</span><span class="s">가공 방식</span><span class="value">워시드, 내추럴</span></div>
+      <div class="tile navy"><span class="t">Roast</span><span class="s">로스팅</span><span class="value">미디엄</span><span class="roast" aria-hidden="true"></span></div>
+      <div class="tile hot"><span class="t">Size</span><span class="s">용량</span><span class="value">200 g (홀빈)</span></div>
+    </div>
+
+    <div class="view" id="brew" role="tabpanel" hidden>
+      <button type="button" class="tile light method" data-m="drip" aria-pressed="true"><span class="tag">CURRENT</span><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><path d="M14 14H86L66 52H34ZM28 62H72M32 62L28 90H72L68 62"/></svg><span class="t">Hand Drip</span><span class="s">핸드드립</span><span class="go">SELECT</span></button>
+      <button type="button" class="tile light method" data-m="espresso" aria-pressed="false"><span class="tag">CURRENT</span><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><path d="M18 44H70V60C70 94 18 94 18 60ZM70 50C94 46 92 76 66 74M34 10V28M52 10V28"/></svg><span class="t">Espresso</span><span class="s">에스프레소</span><span class="go">SELECT</span></button>
+      <button type="button" class="tile light method" data-m="cold" aria-pressed="false"><span class="tag">CURRENT</span><svg class="icon" viewBox="0 0 100 100" aria-hidden="true"><path d="M24 14H76L68 90H32ZM28 38H72M42 52L56 56L52 70L38 66Z"/></svg><span class="t">Cold Brew</span><span class="s">콜드브루</span><span class="go">SELECT</span></button>
+      <div class="tile navy recipe" aria-live="polite">
+        <span class="t">Recipe</span>
+        <div class="nums">
+          <div><small>원두</small><strong id="dose">15 g</strong></div>
+          <div><small id="liquidLabel">물</small><strong id="water">240 g</strong></div>
+          <div><small>물 온도</small><strong id="temp">92℃</strong></div>
+          <div><small>추출 시간</small><strong id="time">2분 30초</strong></div>
+        </div>
+        <p class="tip" id="tip">30초 동안 뜸을 들인 뒤, 가운데부터 원을 그리며 천천히 부어주세요.</p>
+      </div>
+      <div class="tile hot cups"><span class="t">Cups</span><span class="s">잔 수</span>
+        <div class="step"><button type="button" id="minus" aria-label="한 잔 줄이기">−</button><output id="count" aria-live="polite">1잔</output><button type="button" id="plus" aria-label="한 잔 늘리기">+</button></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <span class="keys"><kbd>ENTER</kbd>선택&nbsp; <kbd>← → ↑ ↓</kbd>이동 · <kbd>↑</kbd>탭</span>
+    <span class="credit">회사명 · 시안 (내용은 모두 예시)</span>
+  </footer>
+  <button type="button" class="help" id="help" aria-expanded="false" aria-controls="panel"><kbd>H</kbd>조작법</button>
+  <div class="panel" id="panel" hidden>
+    <h2>Controls</h2>
+    <p><kbd>← → ↑ ↓</kbd>타일과 탭 이동</p>
+    <p><kbd>ENTER</kbd>선택</p>
+    <p><kbd>ESC</kbd>홈으로 돌아가기</p>
+    <p><kbd>H</kbd>이 창 열기와 닫기</p>
+  </div>
+</div>
+
+<script>
+/* ───── 타일 그림: 캔버스에 직접 그립니다 ───── */
+const TAU=Math.PI*2;
+function rng(seed){return()=>{seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function lin(c,x0,y0,x1,y1,s){const g=c.createLinearGradient(x0,y0,x1,y1);s.forEach((v,i)=>g.addColorStop(i/(s.length-1),v));return g}
+function glow(c,x,y,r,color){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color);g.addColorStop(1,color.replace(/[\d.]+\)$/,'0)'));c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
+function oval(c,x,y,rx,ry,fill,a=0){c.beginPath();c.ellipse(x,y,rx,ry,a,0,TAU);c.fillStyle=fill;c.fill()}
+function soft(c,px,fn){c.save();c.filter=`blur(${px}px)`;fn();c.restore()}
+function shape(c,d,fill){c.fillStyle=fill;c.fill(d)}
+function path(pts){const p=new Path2D();pts.forEach(([x,y],i)=>i?p.lineTo(x,y):p.moveTo(x,y));p.closePath();return p}
+function steam(c,x,y,h,u){soft(c,u*1.6,()=>{c.strokeStyle='rgba(255,240,220,.38)';c.lineWidth=u*2.2;c.lineCap='round';[-1,.2,1.3].forEach((k,i)=>{c.beginPath();c.moveTo(x+k*h*.16,y);c.bezierCurveTo(x+k*h*.16-h*.3,y-h*.35,x+k*h*.16+h*.3,y-h*.6,x+k*h*.1,y-h*(.8+i*.1));c.stroke()})})}
+function bean(c,x,y,r,a){c.save();c.translate(x,y);c.rotate(a);oval(c,r*.18,r*.25,r,r*.7,'rgba(0,0,0,.45)');
+  const g=c.createRadialGradient(-r*.35,-r*.3,r*.05,0,0,r*1.1);g.addColorStop(0,'#a8683c');g.addColorStop(.45,'#5c301a');g.addColorStop(1,'#1c0c05');oval(c,0,0,r,r*.7,g);
+  c.beginPath();c.moveTo(-r*.82,0);c.bezierCurveTo(-r*.3,-r*.32,r*.3,r*.32,r*.82,0);c.strokeStyle='#150803';c.lineWidth=r*.13;c.lineCap='round';c.stroke();
+  c.translate(0,r*.09);c.strokeStyle='rgba(220,160,110,.28)';c.lineWidth=r*.05;c.stroke();c.restore()}
+function drop(c,x,y,r){oval(c,x+r*.15,y+r*.3,r,r*1.1,'rgba(0,0,0,.28)');oval(c,x,y,r,r*1.08,lin(c,x,y-r,x,y+r,['rgba(5,15,20,.6)','rgba(60,80,90,.28)','rgba(220,235,240,.55)']));oval(c,x-r*.3,y-r*.4,r*.2,r*.16,'rgba(255,255,255,.85)')}
+function cup(c,cx,cy,k){
+  oval(c,cx,cy+k*.8,k*1.45,k*.26,'rgba(0,0,0,.45)');
+  oval(c,cx,cy+k*.68,k*1.3,k*.24,lin(c,cx-k*1.3,0,cx+k*1.3,0,['#6f5a50','#e8dccb','#fff3df']));
+  c.beginPath();c.moveTo(cx+k*.82,cy-k*.25);c.bezierCurveTo(cx+k*1.55,cy-k*.35,cx+k*1.4,cy+k*.45,cx+k*.66,cy+k*.4);c.strokeStyle='#efe2cf';c.lineWidth=k*.16;c.stroke();
+  const b=new Path2D();b.moveTo(cx-k*.9,cy-k*.4);b.bezierCurveTo(cx-k*.88,cy+k*.5,cx-k*.5,cy+k*.72,cx,cy+k*.72);b.bezierCurveTo(cx+k*.5,cy+k*.72,cx+k*.88,cy+k*.5,cx+k*.9,cy-k*.4);b.closePath();
+  shape(c,b,lin(c,cx-k,0,cx+k,0,['#4d3a35','#a8917f','#f2e5d2','#fff7e8','#c9a98a']));
+  oval(c,cx,cy-k*.4,k*.9,k*.22,'#f7ecdb');oval(c,cx,cy-k*.39,k*.79,k*.17,'#2a1208');
+  oval(c,cx,cy-k*.37,k*.7,k*.13,lin(c,cx-k*.7,0,cx+k*.7,0,['#3a1a0a','#8a4c22','#c07a38']))}
+function bag(c,cx,top,h){const w=h*.64,b=top+h;
+  soft(c,h*.03,()=>oval(c,cx,b,w*.66,h*.05,'rgba(0,0,0,.7)'));
+  const p=path([[cx-w*.42,top],[cx+w*.42,top],[cx+w*.5,b],[cx-w*.5,b]]);
+  shape(c,p,lin(c,cx-w/2,0,cx+w/2,0,['#120b08','#4a3426','#2b1d15','#2f2017','#0d0806']));
+  shape(c,path([[cx-w*.42,top],[cx+w*.42,top],[cx+w*.426,top+h*.07],[cx-w*.426,top+h*.07]]),'rgba(255,225,190,.14)');
+  c.setLineDash([h*.008,h*.012]);c.strokeStyle='#a8874f';c.lineWidth=h*.004;c.beginPath();c.moveTo(cx-w*.43,top+h*.095);c.lineTo(cx+w*.43,top+h*.095);c.stroke();c.setLineDash([]);
+  c.fillStyle='#ecd49c';c.textAlign='center';c.textBaseline='alphabetic';
+  c.font=`700 ${h*.13}px "IBM Plex Sans KR","Malgun Gothic",sans-serif`;c.fillText('새벽결',cx,top+h*.31);
+  c.font=`700 ${h*.05}px "Barlow Condensed",sans-serif`;c.fillText('D A W N   B L E N D',cx,top+h*.39);
+  c.beginPath();c.arc(cx,top+h*.66,w*.25,Math.PI,TAU);c.fillStyle=lin(c,0,top+h*.5,0,top+h*.66,['#f6e2b0','#9c7536']);c.fill();
+  c.fillStyle='#c9a461';[0,1,2].forEach(i=>c.fillRect(cx-w*(.33-i*.07),top+h*(.66+i*.035),w*(.66-i*.14),h*.006));
+  c.fillStyle='#d8c8ac';c.font=`600 ${h*.042}px "Barlow Condensed",sans-serif`;c.fillText('WHOLE BEAN  200 g',cx,top+h*.9)}
+
+const SCENES={
+  window(c,W,H,u,r){
+    c.fillStyle=lin(c,0,0,0,H,['#555a5e','#6b6560','#2b211c','#0c0908']);c.fillRect(0,0,W,H);
+    soft(c,u*4,()=>{
+      for(let i=0;i<9;i++){c.fillStyle=`rgba(${r()>.5?'20,16,14':'190,178,165'},.35)`;c.fillRect(r()*W,r()*H*.55,W*(.05+r()*.22),H*(.05+r()*.18))}
+      for(let i=0;i<34;i++)oval(c,r()*W,H*(.1+r()*.6),u*(1+r()*4),u*(1+r()*4),`rgba(255,${160+r()*70|0},${90+r()*90|0},${.12+r()*.35})`);
+      c.fillStyle='rgba(12,8,6,.75)';c.fillRect(0,H*.68,W,H*.32);
+      cup(c,W*.55,H*.62,u*13)});
+    for(let i=0;i<W*H/(u*u*34);i++){const s=r();drop(c,r()*W,r()*H,u*(.12+s*s*s*.95))}},
+  dawn(c,W,H,u,r){
+    const hz=H*.64;c.fillStyle=lin(c,0,0,0,hz,['#232c4a','#6d5566','#c8805a','#ffd08a']);c.fillRect(0,0,W,hz);
+    glow(c,W*.7,hz,H*.75,'rgba(255,225,160,.95)');
+    soft(c,u*.8,()=>{c.fillStyle='rgba(55,34,38,.82)';for(let x=0;x<W;x+=u*5){const h=u*(3+r()*13);c.fillRect(x,hz-h,u*(3+r()*3),h)}});
+    c.fillStyle=lin(c,0,hz,0,H,['#c98a4c','#5c321d','#170b06']);c.fillRect(0,hz,W,H-hz);
+    soft(c,u*2,()=>oval(c,W*.7,hz+H*.08,u*10,H*.14,'rgba(255,215,145,.6)'));
+    for(let i=0;i<46;i++){c.fillStyle=`rgba(255,220,170,${r()*.28})`;c.fillRect(r()*W,hz+r()*(H-hz),u*(3+r()*18),u*.35)}
+    const k=u*17;cup(c,W*.64,H*.69,k);steam(c,W*.64,H*.69-k*.55,H*.34,u)},
+  bag(c,W,H,u,r){
+    c.fillStyle='#0f0a08';c.fillRect(0,0,W,H);glow(c,W*.66,H*.4,Math.max(W,H)*.65,'rgba(176,112,62,.85)');
+    soft(c,u*2.5,()=>{for(let i=0;i<18;i++)oval(c,r()*W,r()*H*.6,u*(2+r()*5),u*(2+r()*5),`rgba(255,190,120,${r()*.16})`)});
+    c.fillStyle=lin(c,0,H*.76,0,H,['#4a2d1d','#0c0705']);c.fillRect(0,H*.76,W,H*.24);
+    soft(c,u*.5,()=>{for(let i=0;i<26;i++)bean(c,r()*W,H*(.79+r()*.08),u*(2+r()*2),r()*TAU)});
+    bag(c,W*.66,H*.1,H*.8);
+    for(let i=0;i<22;i++)bean(c,W*(.36+r()*.62),H*(.9+r()*.09),u*(3+r()*2.5),r()*TAU)},
+  beans(c,W,H,u,r){
+    c.fillStyle='#120804';c.fillRect(0,0,W,H);const s=u*6;
+    for(let y=-s;y<H+s;y+=s*.72)for(let x=-s;x<W+s;x+=s*.95)bean(c,x+r()*s*.8,y+r()*s*.6,s*(.62+r()*.2),r()*TAU);
+    c.fillStyle='rgba(10,5,2,.45)';c.fillRect(0,0,W,H);glow(c,W*.72,H*.5,Math.max(W,H)*.6,'rgba(255,170,90,.32)');
+    bag(c,W*.56,H*.25,Math.min(H*.66,W*1.05))},
+  orange(c,W,H,u){
+    c.fillStyle=lin(c,0,0,0,H,['#050914','#0d1730','#050810']);c.fillRect(0,0,W,H);
+    const x=W*.66,y=H*.62,R=Math.min(W,H)*.27;
+    soft(c,u*3,()=>shape(c,path([[x-R*.4,0],[x+R*.4,0],[x+R*1.2,H],[x-R*1.2,H]]),lin(c,0,0,0,H,['rgba(255,150,60,.5)','rgba(255,150,60,.06)'])));
+    glow(c,x,y,R*2.4,'rgba(255,130,30,.55)');
+    oval(c,x,y,R,R,'#f2790f');oval(c,x,y,R*.9,R*.9,'#ffe0ae');
+    for(let i=0;i<10;i++){const a=i*TAU/10;c.beginPath();c.moveTo(x+Math.cos(a+.31)*R*.1,y+Math.sin(a+.31)*R*.1);c.arc(x,y,R*.82,a+.05,a+TAU/10-.05);c.closePath();const g=c.createRadialGradient(x,y,0,x,y,R*.82);g.addColorStop(0,'#ffc552');g.addColorStop(1,'#f37608');c.fillStyle=g;c.fill()}
+    oval(c,x-R*.35,y-R*.42,R*.28,R*.1,'rgba(255,255,255,.35)',-.6)},
+  drip(c,W,H,u){
+    c.fillStyle=lin(c,0,0,W,H,['#101a36','#3a2430','#150b07']);c.fillRect(0,0,W,H);glow(c,W*.75,H*.55,H*.7,'rgba(255,150,80,.5)');
+    c.fillStyle=lin(c,0,H*.86,0,H,['#4a2c1c','#0b0604']);c.fillRect(0,H*.86,W,H*.14);
+    const x=W*.65,k=Math.min(H*.2,W*.2),top=H*.42;
+    soft(c,u,()=>oval(c,x,H*.89,k*1.2,k*.15,'rgba(0,0,0,.7)'));
+    const j=path([[x-k*.62,top+k*1.1],[x+k*.62,top+k*1.1],[x+k*.95,H*.86],[x+k*.8,H*.89],[x-k*.8,H*.89],[x-k*.95,H*.86]]);
+    shape(c,j,'rgba(210,230,255,.14)');c.save();c.clip(j);c.fillStyle=lin(c,x-k,0,x+k,0,['#1c0a03','#8a4318','#34150a']);c.fillRect(x-k,H*.72,k*2,H*.2);oval(c,x,H*.72,k*.86,k*.08,'#b8702f');c.restore();
+    c.strokeStyle='rgba(255,235,215,.55)';c.lineWidth=u*.6;c.stroke(j);
+    c.strokeStyle='#b8691f';c.lineWidth=u*1.1;c.setLineDash([u*3,u*2]);c.beginPath();c.moveTo(x,top+k*.95);c.lineTo(x,H*.72);c.stroke();c.setLineDash([]);
+    shape(c,path([[x-k,top],[x+k,top],[x+k*.42,top+k*.95],[x-k*.42,top+k*.95]]),lin(c,x-k,0,x+k,0,['#6b5148','#fff0dc','#b99a80']));
+    c.fillStyle='#e5d3bd';c.fillRect(x-k*.78,top+k*.95,k*1.56,k*.17);oval(c,x,top,k,k*.17,'#f8ecda');oval(c,x,top,k*.85,k*.12,'#3d1c0c');steam(c,x,top-u,H*.2,u)},
+  espresso(c,W,H,u,r){
+    c.fillStyle=lin(c,0,0,0,H,['#171b20','#3b2a20','#0e0806']);c.fillRect(0,0,W,H);
+    soft(c,u*3,()=>{for(let i=0;i<14;i++)oval(c,r()*W,r()*H*.7,u*(3+r()*5),u*(3+r()*5),`rgba(255,170,90,${r()*.28})`)});
+    const x=W*.62,k=Math.min(H*.17,W*.19),metal=['#23272b','#e9eef2','#6b737a','#c7ced4','#1b1e21'];
+    c.fillStyle=lin(c,x-k*1.3,0,x+k*1.3,0,metal);c.fillRect(x-k*1.2,H*.36,k*2.4,k*.6);c.fillRect(x-k*.5,H*.36+k*.6,k,k*.25);
+    c.fillStyle='#0b0b0c';c.fillRect(x+k*1.2,H*.38,W,k*.3);
+    c.fillStyle=lin(c,0,H*.86,0,H,['#3b2c24','#090605']);c.fillRect(0,H*.86,W,H*.14);
+    cup(c,x,H*.77,k*.9);
+    c.strokeStyle='#c47a2e';c.lineWidth=u*1.3;c.lineCap='round';[-1,1].forEach(s=>{c.beginPath();c.moveTo(x+s*k*.3,H*.36+k*.9);c.quadraticCurveTo(x+s*k*.3,H*.62,x+s*k*.12,H*.77-k*.35);c.stroke()})},
+  cold(c,W,H,u,r){
+    c.fillStyle=lin(c,0,0,W,H,['#12324a','#2d5566','#0a1118']);c.fillRect(0,0,W,H);glow(c,W*.8,H*.35,H*.65,'rgba(150,215,230,.45)');
+    c.fillStyle=lin(c,0,H*.86,0,H,['#2b3b42','#05090c']);c.fillRect(0,H*.86,W,H*.14);
+    const x=W*.66,k=Math.min(H*.2,W*.19),t=H*.36,b=H*.9;
+    soft(c,u,()=>oval(c,x,b,k*1.1,k*.16,'rgba(0,0,0,.65)'));
+    const g=path([[x-k,t],[x+k,t],[x+k*.74,b],[x-k*.74,b]]);
+    c.save();c.clip(g);c.fillStyle='rgba(220,245,255,.16)';c.fillRect(x-k,t,k*2,b-t);
+    c.fillStyle=lin(c,0,t+k*.4,0,b,['#c27a3a','#6a2f10','#1a0802']);c.fillRect(x-k,t+k*.4,k*2,b-t);
+    [[-.4,.7,.3],[.35,.62,-.4],[0,1.25,.8],[.4,1.65,.2]].forEach(([dx,dy,a])=>{c.save();c.translate(x+dx*k,t+dy*k);c.rotate(a);c.beginPath();c.roundRect?c.roundRect(-k*.32,-k*.32,k*.64,k*.64,k*.12):c.rect(-k*.32,-k*.32,k*.64,k*.64);c.fillStyle='rgba(230,248,255,.26)';c.fill();c.strokeStyle='rgba(255,255,255,.5)';c.lineWidth=u*.4;c.stroke();c.restore()});c.restore();
+    c.strokeStyle='rgba(235,250,255,.75)';c.lineWidth=u*.7;c.stroke(g);c.fillStyle='rgba(255,255,255,.22)';c.fillRect(x-k*.7,t+k*.2,k*.12,(b-t)*.75);
+    for(let i=0;i<34;i++)drop(c,x+(r()-.5)*k*1.4,t+k*.5+r()*(b-t-k*.7),u*(.3+r()*.8))}
+};
+
+function draw(cv){
+  const w=cv.clientWidth,h=cv.clientHeight;if(!w||!h)return;
+  const d=Math.min(window.devicePixelRatio||1,2),W=cv.width=Math.round(w*d),H=cv.height=Math.round(h*d);
+  const name=cv.dataset.scene,u=Math.min(W,H)/100;
+  SCENES[name](cv.getContext('2d'),W,H,u,rng(name.length*977+13));
+}
+const canvases=[...document.querySelectorAll('canvas[data-scene]')];
+if(window.ResizeObserver){const ro=new ResizeObserver(es=>es.forEach(e=>draw(e.target)));canvases.forEach(c=>ro.observe(c))}
+else canvases.forEach(draw);
+if(document.fonts)document.fonts.ready.then(()=>canvases.forEach(draw));
+
+/* ───── 추출 가이드 ───── */
+const M={
+  drip:{dose:15,water:240,label:'물',temp:'92℃',time:'2분 30초',tip:'30초 동안 뜸을 들인 뒤, 가운데부터 원을 그리며 천천히 부어주세요.'},
+  espresso:{dose:18,water:36,label:'추출량',temp:'93℃',time:'28초',tip:'원두를 고르게 담아 수평으로 눌러주세요. 잔 수만큼 나누어 추출합니다.'},
+  cold:{dose:20,water:200,label:'물',temp:'찬물',time:'12시간',tip:'굵게 간 원두를 냉장고에서 우린 뒤 걸러주세요. 얼음을 더하면 좋습니다.'}
+};
+let method='drip',cups=1;
+const $=id=>document.getElementById(id);
+const methods=[...document.querySelectorAll('[data-m]')];
+function render(){
+  const r=M[method];
+  $('count').textContent=cups+'잔';
+  $('dose').textContent=r.dose*cups+' g';
+  $('water').textContent=r.water*cups+' g';
+  $('liquidLabel').textContent=r.label;
+  $('temp').textContent=r.temp;
+  $('time').textContent=r.time;
+  $('tip').textContent=r.tip;
+  $('minus').disabled=cups===1;
+  $('plus').disabled=cups===6;
+  methods.forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===method));
+}
+methods.forEach(b=>b.onclick=()=>{method=b.dataset.m;render()});
+$('minus').onclick=()=>{if(cups>1){cups--;render()}};
+$('plus').onclick=()=>{if(cups<6){cups++;render()}};
+render();
+
+/* ───── 탭, 타일 선택, 키보드 ───── */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+const views=[...document.querySelectorAll('.view')];
+function show(name){
+  if(!views.some(v=>v.id===name))name='home';
+  views.forEach(v=>v.hidden=v.id!==name);
+  tabs.forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===name));
+}
+// 주소의 #view-이름은 요소 id와 달라서 화면이 저절로 스크롤되지 않습니다
+const fromHash=()=>location.hash.replace('#view-','');
+// 원형 열림 효과는 첫 화면과 HOME 버튼에서만 재생하고, 다른 이동은 바로 보여줍니다
+const app=document.querySelector('.app');
+const stopIris=()=>{app.style.animation='none'};
+function iris(){stopIris();void app.offsetWidth;app.style.animation=''}
+function go(name){stopIris();show(name);try{history.replaceState(null,'','#view-'+name)}catch(e){}}
+tabs.forEach(t=>t.onclick=()=>{go(t.dataset.tab);if(t.dataset.tab==='home')iris()});
+document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',()=>{
+  if(b.dataset.method){method=b.dataset.method;render()}
+  go(b.dataset.open);
+  tabs.find(t=>t.dataset.tab===b.dataset.open).focus({preventScroll:true});
+}));
+function select(el){document.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));el.classList.add('sel')}
+document.querySelectorAll('button.tile').forEach(b=>{b.addEventListener('pointerenter',()=>select(b));b.addEventListener('focus',()=>select(b))});
+window.addEventListener('hashchange',()=>{stopIris();show(fromHash())});
+show(fromHash());
+
+function help(open){$('panel').hidden=!open;$('help').setAttribute('aria-expanded',open)}
+$('help').onclick=()=>help($('panel').hidden);
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(e.code==='KeyH'){help($('panel').hidden);return}
+  if(e.key==='Escape'){if(!$('panel').hidden)help(false);else{go('home');tabs[0].focus()}return}
+  const dir={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
+  if(!dir)return;
+  const view=views.find(v=>!v.hidden),items=[...view.querySelectorAll('button:not(:disabled)')],cur=document.activeElement;
+  const at=tabs.indexOf(cur);
+  if(at>-1){
+    e.preventDefault();
+    if(dir[0]){const t=tabs[(at+dir[0]+tabs.length)%tabs.length];t.focus();go(t.dataset.tab)}
+    else if(dir[1]>0&&items[0])items[0].focus();
+    return;
+  }
+  if(!items.includes(cur)){if(items[0]){e.preventDefault();items[0].focus()}return}
+  e.preventDefault();
+  const mid=el=>{const r=el.getBoundingClientRect();return [r.left,r.right,r.top,r.bottom]};
+  const [l,rt,t,b]=mid(cur);
+  const next=items.filter(i=>i!==cur).map(i=>{const [L,R,T,B]=mid(i);
+    const along=dir[0]>0?L-rt:dir[0]<0?l-R:dir[1]>0?T-b:t-B;
+    const across=dir[0]?Math.max(0,T-b,t-B)*4+Math.abs(T-t):Math.max(0,L-rt,l-R)*4+Math.abs(L-l);
+    return {i,along,score:along+across}}).filter(x=>x.along>-2).sort((p,q)=>p.score-q.score)[0];
+  if(next)next.i.focus();
+  else if(dir[1]<0)tabs.find(x=>x.getAttribute('aria-selected')==='true').focus();
+});
+</script>
+</body>
+</html>
